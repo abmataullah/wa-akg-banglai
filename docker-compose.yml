@@ -51,7 +51,7 @@ services:
       - root_default
     labels:
       - traefik.enable=true
-      - traefik.http.routers.wa-akg.rule=Host(`wa.banglai.cloud`)
+      - traefik.http.routers.wa-akg.rule=Host(`wa.banglai.cloud`) || Host(`wa.amarshowroom.com`)
       - traefik.http.routers.wa-akg.tls=true
       - traefik.http.routers.wa-akg.entrypoints=web,websecure
       - traefik.http.routers.wa-akg.tls.certresolver=mytlschallenge
