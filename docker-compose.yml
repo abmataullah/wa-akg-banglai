@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: mysql:8.0
@@ -8,8 +6,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
-    ports:
-      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -17,6 +13,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - wa-akg-internal
 
   app:
     build:
@@ -24,24 +22,22 @@ services:
       dockerfile: Dockerfile
     container_name: wa-akg-app
     restart: always
-    ports:
-      - "3000:3000"
     environment:
       - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}
       - AUTH_SECRET=${AUTH_SECRET}
-      - BASE_URL=${BASE_URL:-http://localhost:3000}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - BASE_URL=${BASE_URL:-https://wa.banglai.cloud}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://wa.banglai.cloud}
       - NODE_ENV=production
-      - PORT=${PORT:-3000}
+      - PORT=3000
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_APP_URL=${BASE_URL:-http://localhost:3000}
-      - NEXT_PUBLIC_API_URL=${BASE_URL:-http://localhost:3000}/api
+      - NEXT_PUBLIC_APP_URL=${BASE_URL:-https://wa.banglai.cloud}
+      - NEXT_PUBLIC_API_URL=${BASE_URL:-https://wa.banglai.cloud}/api
       - BAILEYS_LOG_LEVEL=${BAILEYS_LOG_LEVEL:-error}
       - NEXT_PUBLIC_SWAGGER_USERNAME=${NEXT_PUBLIC_SWAGGER_USERNAME:-admin}
       - NEXT_PUBLIC_SWAGGER_PASSWORD=${NEXT_PUBLIC_SWAGGER_PASSWORD}
       - NEXT_PUBLIC_SWAGGER_ENABLED=${NEXT_PUBLIC_SWAGGER_ENABLED:-true}
-      - TZ=${TZ:-Asia/Jakarta}
-      - LOCALE=${LOCALE:-id-ID}
+      - TZ=${TZ:-Asia/Dhaka}
+      - LOCALE=${LOCALE:-en-US}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     depends_on:
@@ -50,8 +46,23 @@ services:
     volumes:
       - app_data:/app/data
       - uploads_data:/app/uploads
+    networks:
+      - wa-akg-internal
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wa-akg.rule=Host(`wa.banglai.cloud`)
+      - traefik.http.routers.wa-akg.tls=true
+      - traefik.http.routers.wa-akg.entrypoints=web,websecure
+      - traefik.http.routers.wa-akg.tls.certresolver=mytlschallenge
+      - traefik.http.services.wa-akg.loadbalancer.server.port=3000
 
 volumes:
   mysql_data:
   app_data:
   uploads_data:
+
+networks:
+  wa-akg-internal:
+  root_default:
+    external: true
