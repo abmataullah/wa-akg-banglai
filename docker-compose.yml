@@ -4,8 +4,8 @@ services:
     container_name: wa-akg-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
+      MYSQL_ROOT_PASSWORD: WaAkg2026SecurePass
+      MYSQL_DATABASE: wa_akg
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -23,23 +23,23 @@ services:
     container_name: wa-akg-app
     restart: always
     environment:
-      - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}
-      - AUTH_SECRET=${AUTH_SECRET}
-      - BASE_URL=${BASE_URL:-https://wa.banglai.cloud}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://wa.banglai.cloud}
+      - DATABASE_URL=mysql://root:WaAkg2026SecurePass@db:3306/wa_akg
+      - AUTH_SECRET=Kj8mR2pX7nQ4vB3zF6hY9wL1tA5sC8eD
+      - BASE_URL=https://wa.banglai.cloud
+      - NEXTAUTH_URL=https://wa.banglai.cloud
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_APP_URL=${BASE_URL:-https://wa.banglai.cloud}
-      - NEXT_PUBLIC_API_URL=${BASE_URL:-https://wa.banglai.cloud}/api
-      - BAILEYS_LOG_LEVEL=${BAILEYS_LOG_LEVEL:-error}
-      - NEXT_PUBLIC_SWAGGER_USERNAME=${NEXT_PUBLIC_SWAGGER_USERNAME:-admin}
-      - NEXT_PUBLIC_SWAGGER_PASSWORD=${NEXT_PUBLIC_SWAGGER_PASSWORD}
-      - NEXT_PUBLIC_SWAGGER_ENABLED=${NEXT_PUBLIC_SWAGGER_ENABLED:-true}
-      - TZ=${TZ:-Asia/Dhaka}
-      - LOCALE=${LOCALE:-en-US}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - NEXT_PUBLIC_APP_URL=https://wa.banglai.cloud
+      - NEXT_PUBLIC_API_URL=https://wa.banglai.cloud/api
+      - BAILEYS_LOG_LEVEL=error
+      - NEXT_PUBLIC_SWAGGER_USERNAME=admin
+      - NEXT_PUBLIC_SWAGGER_PASSWORD=Swagger2026
+      - NEXT_PUBLIC_SWAGGER_ENABLED=true
+      - TZ=Asia/Dhaka
+      - LOCALE=en-US
+      - ADMIN_EMAIL=admin@banglai.cloud
+      - ADMIN_PASSWORD=AdminBanglai2026
     depends_on:
       db:
         condition: service_healthy
