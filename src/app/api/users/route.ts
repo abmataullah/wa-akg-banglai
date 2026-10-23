@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
+import { getAuthenticatedUser, isAdmin, isReseller } from "@/lib/api-auth";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -8,25 +8,27 @@ const createUserSchema = z.object({
     name: z.string().min(2),
     email: z.string().email(),
     password: z.string().min(6),
-    role: z.enum(["SUPERADMIN", "OWNER", "STAFF"]).default("OWNER"),
+    role: z.enum(["SUPERADMIN", "RESELLER", "OWNER", "STAFF"]).default("OWNER"),
 });
 
 export async function GET(request: NextRequest) {
     const user = await getAuthenticatedUser(request);
 
-    // Only SUPERADMIN can list users
-    if (!user || !isAdmin(user.role)) {
+    // SUPERADMIN lists everyone; RESELLER lists only its own sub-users
+    if (!user || !(isAdmin(user.role) || isReseller(user.role))) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 403 });
     }
 
     try {
         const users = await prisma.user.findMany({
+            where: isAdmin(user.role) ? {} : { parentId: user.id },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
                 name: true,
                 email: true,
                 role: true,
+                parentId: true,
                 createdAt: true,
                 _count: {
                     select: { sessions: true }
@@ -43,8 +45,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     const user = await getAuthenticatedUser(request);
 
-    // Only SUPERADMIN can create users
-    if (!user || !isAdmin(user.role)) {
+    // SUPERADMIN creates any user; RESELLER creates OWNER/STAFF sub-users only
+    if (!user || !(isAdmin(user.role) || isReseller(user.role))) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 403 });
     }
 
@@ -57,6 +59,10 @@ export async function POST(request: NextRequest) {
         }
 
         const { name, email, password, role } = parseResult.data;
+
+        if (isReseller(user.role) && (role === "SUPERADMIN" || role === "RESELLER")) {
+            return NextResponse.json({ status: false, message: "Resellers can only create OWNER or STAFF users", error: "Forbidden role" }, { status: 403 });
+        }
 
         // Check if email exists
         const existing = await prisma.user.findUnique({ where: { email } });
@@ -71,13 +77,15 @@ export async function POST(request: NextRequest) {
                 name,
                 email,
                 password: hashedPassword,
-                role: role as any
+                role: role as any,
+                parentId: isReseller(user.role) ? user.id : null
             },
             select: {
                 id: true,
                 name: true,
                 email: true,
                 role: true,
+                parentId: true,
                 createdAt: true
             }
         });

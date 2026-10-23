@@ -1,11 +1,13 @@
 import { prisma } from "./prisma";
 import { NextRequest } from "next/server";
+import { randomBytes } from "crypto";
 import { auth } from "./auth";
 import { logger } from "./logger";
 
 // Role hierarchy for permission checks
 const ROLE_HIERARCHY = {
     SUPERADMIN: 3,
+    RESELLER: 2,
     OWNER: 2,
     STAFF: 1
 } as const;
@@ -81,6 +83,36 @@ export function isAdmin(userRole: string): boolean {
 }
 
 /**
+ * RESELLER = a platform/website tenant (e.g. amarshowroom.com) that provisions its own
+ * sub-users. It can only see and manage users it created (User.parentId) and their sessions.
+ */
+export function isReseller(userRole: string): boolean {
+    return userRole === "RESELLER";
+}
+
+/**
+ * Can the actor manage (read/update/delete/rotate key) the target user?
+ * SUPERADMIN: anyone. RESELLER: only its own sub-users.
+ */
+export async function canManageUser(actorId: string, actorRole: string, targetUserId: string): Promise<boolean> {
+    if (isAdmin(actorRole)) return true;
+    if (!isReseller(actorRole)) return false;
+    const target = await prisma.user.findUnique({ where: { id: targetUserId }, select: { parentId: true } });
+    return !!target && target.parentId === actorId;
+}
+
+async function isResellerOfSession(resellerId: string, sessionId: string): Promise<boolean> {
+    const session = await prisma.session.findFirst({
+        where: {
+            OR: [{ id: sessionId }, { sessionId: sessionId }],
+            user: { parentId: resellerId }
+        },
+        select: { id: true }
+    });
+    return !!session;
+}
+
+/**
  * Check if user can access a session
  * - SUPERADMIN can access all sessions
  * - Other users can access their own sessions OR sessions shared with them
@@ -101,6 +133,8 @@ export async function canAccessSession(userId: string, userRole: string, session
     });
 
     if (session) return true;
+
+    if (isReseller(userRole) && await isResellerOfSession(userId, sessionId)) return true;
 
     // Check if user has shared access
     const dbSession = await prisma.session.findFirst({
@@ -145,7 +179,9 @@ export async function isSessionOwner(userId: string, userRole: string, sessionId
         }
     });
 
-    return !!session;
+    if (session) return true;
+
+    return isReseller(userRole) && isResellerOfSession(userId, sessionId);
 }
 
 /**
@@ -179,10 +215,13 @@ export async function getAccessibleSessions(userId: string, userRole: string) {
         });
     }
 
-    // Get sessions owned by user + sessions shared with user
+    // Get sessions owned by user (+ sub-users' sessions for a RESELLER) + sessions shared with user
+    const ownerFilter = isReseller(userRole)
+        ? { OR: [{ userId }, { user: { parentId: userId } }] }
+        : { userId };
     const [ownedSessions, sharedAccess] = await Promise.all([
         prisma.session.findMany({
-            where: { userId },
+            where: ownerFilter,
             orderBy: { createdAt: 'desc' },
             include: {
                 user: {
@@ -249,10 +288,6 @@ export async function getAccessibleSessions(userId: string, userRole: string) {
  * Generate a new API key
  */
 export function generateApiKey(): string {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let result = "wag_"; // Prefix for easy identification
-    for (let i = 0; i < 32; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    // Cryptographically secure: 32 random bytes, base64url (43 chars)
+    return "wag_" + randomBytes(32).toString("base64url"); // Prefix for easy identification
 }

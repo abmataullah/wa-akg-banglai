@@ -1,24 +1,29 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
+import { getAuthenticatedUser, isAdmin, canManageUser } from "@/lib/api-auth";
 import bcrypt from "bcryptjs";
+
+const ROLES = ["SUPERADMIN", "RESELLER", "OWNER", "STAFF"];
 
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     const user = await getAuthenticatedUser(request);
+    const { id } = await params;
 
-    // Only SUPERADMIN can update users
-    if (!user || !isAdmin(user.role)) {
+    // SUPERADMIN updates anyone; RESELLER only its own sub-users
+    if (!user || !(await canManageUser(user.id, user.role, id))) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 403 });
     }
-
-    const { id } = await params;
 
     try {
         const body = await request.json();
         const { name, email, password, role } = body;
+
+        if (role && (!ROLES.includes(role) || (!isAdmin(user.role) && !["OWNER", "STAFF"].includes(role)))) {
+            return NextResponse.json({ status: false, message: "Role not allowed", error: "Forbidden role" }, { status: 403 });
+        }
 
         // Prevent modifying own role to lock oneself out (optional safety)
         if (id === user.id && role && role !== "SUPERADMIN") {
@@ -58,13 +63,12 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const user = await getAuthenticatedUser(request);
+    const { id } = await params;
 
-    // Only SUPERADMIN can delete users
-    if (!user || !isAdmin(user.role)) {
+    // SUPERADMIN deletes anyone; RESELLER only its own sub-users
+    if (!user || !(await canManageUser(user.id, user.role, id))) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 403 });
     }
-
-    const { id } = await params;
 
     if (id === user.id) {
         return NextResponse.json({ status: false, message: "Cannot delete yourself", error: "Cannot delete yourself" }, { status: 400 });

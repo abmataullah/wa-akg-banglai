@@ -17,7 +17,7 @@ export default function SettingsPage() {
         appName: "WA-AKG",
         logoUrl: "",
         timezone: "Asia/Jakarta",
-        enableRegistration: true
+        enableRegistration: false
     });
     const [systemLoading, setSystemLoading] = useState(false);
     const [timezones, setTimezones] = useState<string[]>(["UTC", "Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"]);
@@ -49,7 +49,7 @@ export default function SettingsPage() {
                         // @ts-ignore
                         faviconUrl: data.faviconUrl || "/favicon.ico",
                         timezone: data.timezone || "Asia/Jakarta",
-                        enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : true
+                        enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : false
                     });
                 }
             })

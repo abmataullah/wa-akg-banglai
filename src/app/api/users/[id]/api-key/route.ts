@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedUser, isAdmin, generateApiKey } from "@/lib/api-auth";
+import { getAuthenticatedUser, canManageUser, generateApiKey } from "@/lib/api-auth";
 
 /**
  * POST /api/users/[id]/api-key
@@ -12,12 +12,12 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const user = await getAuthenticatedUser(request);
+    const { id } = await params;
 
-    if (!user || !isAdmin(user.role)) {
+    // SUPERADMIN: any user. RESELLER: only its own sub-users.
+    if (!user || !(await canManageUser(user.id, user.role, id))) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 403 });
     }
-
-    const { id } = await params;
 
     try {
         const targetUser = await prisma.user.findUnique({
@@ -56,12 +56,12 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const user = await getAuthenticatedUser(request);
+    const { id } = await params;
 
-    if (!user || !isAdmin(user.role)) {
+    // SUPERADMIN: any user. RESELLER: only its own sub-users.
+    if (!user || !(await canManageUser(user.id, user.role, id))) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 403 });
     }
-
-    const { id } = await params;
 
     try {
         const targetUser = await prisma.user.findUnique({

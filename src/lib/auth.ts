@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { authConfig } from "@/auth.config";
+import { redeemSsoToken } from "@/lib/sso-token";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -20,6 +22,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
+
+          // Brute-force protection: max 10 attempts per email per 15 minutes
+          if (!rateLimit(`login:${email.toLowerCase()}`, 10, 15 * 60 * 1000)) return null;
           
           const user = await prisma.user.findUnique({ where: { email } });
           if (!user) return null;
@@ -31,6 +36,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
         return null;
+      },
+    }),
+    Credentials({
+      id: "sso",
+      name: "SSO token",
+      credentials: {
+        token: { label: "Token", type: "text" },
+      },
+      authorize: async (credentials) => {
+        const userId = redeemSsoToken(String(credentials?.token || ""));
+        if (!userId) return null;
+        return prisma.user.findUnique({ where: { id: userId } });
       },
     }),
   ],

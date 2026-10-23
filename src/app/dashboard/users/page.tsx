@@ -25,7 +25,7 @@ interface UserProfile {
     id: string;
     name: string | null;
     email: string;
-    role: "SUPERADMIN" | "OWNER" | "STAFF";
+    role: "SUPERADMIN" | "RESELLER" | "OWNER" | "STAFF";
     createdAt: string;
     _count?: {
         sessions: number;
@@ -199,6 +199,7 @@ export default function UsersPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="SUPERADMIN">Super Admin</SelectItem>
+                                            <SelectItem value="RESELLER">Reseller (website / platform)</SelectItem>
                                             <SelectItem value="OWNER">Owner</SelectItem>
                                             <SelectItem value="STAFF">Staff</SelectItem>
                                         </SelectContent>
