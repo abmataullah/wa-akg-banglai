@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: mysql:8.0
-        restart: always
+    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
@@ -21,7 +21,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-        restart: always
+    restart: always
     expose:
       - "3000"
     environment:
